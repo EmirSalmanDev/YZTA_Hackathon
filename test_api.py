@@ -12,8 +12,6 @@ from typing import Any, Callable
 
 import httpx
 
-BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
-
 _PASS = 0
 _FAIL = 0
 
@@ -51,13 +49,10 @@ def _run(
 
 
 def main() -> None:
-    print(f"\nTarget: {BASE_URL}\n")
+    base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
+    print(f"\nTarget: {base_url}\n")
 
-    try:
-        client = httpx.Client(base_url=BASE_URL, timeout=10.0)
-    except Exception as exc:
-        print(f"[FAIL]  Could not create client: {exc}")
-        sys.exit(1)
+    client = httpx.Client(base_url=base_url, timeout=10.0)
 
     with client:
         # ------------------------------------------------------------------

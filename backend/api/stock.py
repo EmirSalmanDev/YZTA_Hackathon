@@ -25,7 +25,7 @@ async def critical_stock(session: Session = Depends(get_session)) -> List[Produc
     return [p for p in products if p.stock_amount <= p.critical_threshold]
 
 
-@router.patch("/products/{product_id}/stock", response_model=Product)
+@router.patch("/stock/{product_id}", response_model=Product)
 async def update_stock(
     product_id: int,
     body: StockUpdate,

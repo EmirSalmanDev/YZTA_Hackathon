@@ -217,8 +217,6 @@ def _make_conversations(customer_ids: list[int]) -> list[Conversation]:
 # ---------------------------------------------------------------------------
 
 def seed() -> None:
-    create_db_and_tables()
-
     with Session(engine) as session:
         # Idempotency: bail out if customers already exist
         if session.exec(select(Customer)).first() is not None:
@@ -255,5 +253,6 @@ def seed() -> None:
 
 
 if __name__ == "__main__":
+    create_db_and_tables()
     seed()
     print("smoke ok")

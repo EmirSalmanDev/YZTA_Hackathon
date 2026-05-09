@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from database.connection import get_session
@@ -23,12 +24,17 @@ async def list_orders(
     filter_date: Optional[date] = Query(default=None, description="Filter by creation date (YYYY-MM-DD)"),
     session: Session = Depends(get_session),
 ) -> List[Order]:
+    if status is not None and status not in _VALID_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid status. Allowed values: {', '.join(sorted(_VALID_STATUSES))}",
+        )
     query = select(Order)
     if status:
         query = query.where(Order.status == status)
-    orders = session.exec(query).all()
     if filter_date:
-        orders = [o for o in orders if o.created_at.date() == filter_date]
+        query = query.where(func.date(Order.created_at) == filter_date)
+    orders = session.exec(query).all()
     return list(orders)
 
 

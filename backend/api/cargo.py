@@ -37,11 +37,12 @@ async def track_cargo(tracking_id: str) -> ShipmentStatus:
 
 @router.get("/cargo/delays", response_model=List[DelayedShipment])
 async def cargo_delays(session: Session = Depends(get_session)) -> List[DelayedShipment]:
-    orders = session.exec(select(Order)).all()
+    orders = session.exec(
+        select(Order).where(Order.cargo_tracking_id.is_not(None))
+    ).all()
     delayed: list[DelayedShipment] = []
     for order in orders:
-        if not order.cargo_tracking_id:
-            continue
+        assert order.cargo_tracking_id is not None  # guaranteed by IS NOT NULL filter above
         result = track_shipment(order.cargo_tracking_id)
         if result["status"] == _DELAYED_STATUS:
             delayed.append(DelayedShipment(order_id=order.id, **result))  # type: ignore[arg-type]

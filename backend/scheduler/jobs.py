@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -33,17 +33,20 @@ def check_critical_stock() -> None:
     ]
 
     _DATA_DIR.mkdir(exist_ok=True)
-    _ALERTS_FILE.write_text(
+    _tmp = _ALERTS_FILE.with_suffix(".tmp")
+    _tmp.write_text(
         json.dumps(
             {
-                "last_check": datetime.utcnow().isoformat(),
+                "last_check": datetime.now(timezone.utc).isoformat(),
                 "critical_count": len(critical),
                 "products": critical,
             },
             ensure_ascii=False,
             indent=2,
-        )
+        ),
+        encoding="utf-8",
     )
+    _tmp.replace(_ALERTS_FILE)
 
 
 def daily_summary() -> None:
@@ -69,19 +72,23 @@ def daily_summary() -> None:
     ]
 
     _DATA_DIR.mkdir(exist_ok=True)
-    _SUMMARY_FILE.write_text(
+    now = datetime.now(timezone.utc)
+    _tmp = _SUMMARY_FILE.with_suffix(".tmp")
+    _tmp.write_text(
         json.dumps(
             {
-                "date": datetime.utcnow().date().isoformat(),
-                "generated_at": datetime.utcnow().isoformat(),
+                "date": now.date().isoformat(),
+                "generated_at": now.isoformat(),
                 "orders": {"total": len(orders), **status_counts},
                 "critical_stock_count": len(critical),
                 "critical_stock": critical,
             },
             ensure_ascii=False,
             indent=2,
-        )
+        ),
+        encoding="utf-8",
     )
+    _tmp.replace(_SUMMARY_FILE)
 
 
 def start_scheduler() -> None:

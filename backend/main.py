@@ -37,7 +37,7 @@ app.add_middleware(
         "http://localhost:8501",   # Streamlit dashboard
         "http://localhost:8502",   # WhatsApp bot
     ],
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["*"],
 )
 
@@ -47,23 +47,20 @@ app.include_router(stock_router,  tags=["stock"])
 app.include_router(cargo_router,  tags=["cargo"])
 
 
-def _count(model: type) -> int:
-    with Session(engine) as session:
-        return session.exec(select(func.count()).select_from(model)).one()
-
-
 @app.get("/health", tags=["meta"])
 async def health() -> dict:
+    with Session(engine) as session:
+        db_counts = {
+            "customers":     session.exec(select(func.count()).select_from(Customer)).one(),
+            "products":      session.exec(select(func.count()).select_from(Product)).one(),
+            "orders":        session.exec(select(func.count()).select_from(Order)).one(),
+            "cargo_events":  session.exec(select(func.count()).select_from(CargoEvent)).one(),
+            "conversations": session.exec(select(func.count()).select_from(Conversation)).one(),
+        }
     return {
         "status": "ok",
         "time": datetime.now(timezone.utc).isoformat(),
-        "db": {
-            "customers":     _count(Customer),
-            "products":      _count(Product),
-            "orders":        _count(Order),
-            "cargo_events":  _count(CargoEvent),
-            "conversations": _count(Conversation),
-        },
+        "db": db_counts,
     }
 
 
