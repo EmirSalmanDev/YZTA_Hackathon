@@ -1,3 +1,4 @@
+
 """
 chat.py — FastAPI endpoint for the KOBİ Pilot Web Chat Agent
 POST /api/chat       — Customer chat
@@ -175,3 +176,5 @@ async def health():
         return {"status": "ok", "agent": "ready"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Agent not ready: {str(e)}")
+=======
+
