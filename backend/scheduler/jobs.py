@@ -1,22 +1,105 @@
-from apscheduler.schedulers.background import BackgroundScheduler
+import json
+from datetime import datetime
+from pathlib import Path
 
-from agent.tools.stock_tools import get_critical_stock
-from agent.tools.notify_tools import send_alert
+from apscheduler.schedulers.background import BackgroundScheduler
+from sqlmodel import Session, select
+
+from database.connection import engine
+from database.models import Order, Product
+
+_DATA_DIR = Path("data")
+_ALERTS_FILE = _DATA_DIR / "alerts.json"
+_SUMMARY_FILE = _DATA_DIR / "daily_summary.json"
 
 scheduler = BackgroundScheduler()
 
 
-def check_stock_levels() -> None:
-    critical = get_critical_stock()
-    for product in critical:
-        send_alert(
-            message=f"Kritik stok: {product['name']} — {product['quantity']} {product['unit']} kaldı",
-            level="warning",
+def check_critical_stock() -> None:
+    """Write every product below its critical_threshold to data/alerts.json."""
+    with Session(engine) as session:
+        products = session.exec(select(Product)).all()
+
+    critical = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "stock_amount": p.stock_amount,
+            "critical_threshold": p.critical_threshold,
+            "unit": p.unit,
+        }
+        for p in products
+        if p.stock_amount <= p.critical_threshold
+    ]
+
+    _DATA_DIR.mkdir(exist_ok=True)
+    _ALERTS_FILE.write_text(
+        json.dumps(
+            {
+                "last_check": datetime.utcnow().isoformat(),
+                "critical_count": len(critical),
+                "products": critical,
+            },
+            ensure_ascii=False,
+            indent=2,
         )
+    )
+
+
+def daily_summary() -> None:
+    """Write an orders + critical-stock summary to data/daily_summary.json."""
+    with Session(engine) as session:
+        orders = session.exec(select(Order)).all()
+        products = session.exec(select(Product)).all()
+
+    status_counts: dict[str, int] = {}
+    for order in orders:
+        status_counts[order.status] = status_counts.get(order.status, 0) + 1
+
+    critical = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "stock_amount": p.stock_amount,
+            "critical_threshold": p.critical_threshold,
+            "unit": p.unit,
+        }
+        for p in products
+        if p.stock_amount <= p.critical_threshold
+    ]
+
+    _DATA_DIR.mkdir(exist_ok=True)
+    _SUMMARY_FILE.write_text(
+        json.dumps(
+            {
+                "date": datetime.utcnow().date().isoformat(),
+                "generated_at": datetime.utcnow().isoformat(),
+                "orders": {"total": len(orders), **status_counts},
+                "critical_stock_count": len(critical),
+                "critical_stock": critical,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 def start_scheduler() -> None:
-    scheduler.add_job(check_stock_levels, "interval", minutes=15, id="stock_check")
+    scheduler.add_job(
+        check_critical_stock,
+        trigger="interval",
+        minutes=15,
+        id="stock_check",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        daily_summary,
+        trigger="cron",
+        hour=8,
+        minute=0,
+        id="daily_summary",
+        replace_existing=True,
+    )
     scheduler.start()
 
 
@@ -26,4 +109,6 @@ def stop_scheduler() -> None:
 
 
 if __name__ == "__main__":
+    check_critical_stock()
+    daily_summary()
     print("smoke ok")

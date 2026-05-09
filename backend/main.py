@@ -13,7 +13,7 @@ from scheduler.jobs import start_scheduler, stop_scheduler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
-    start_scheduler()
+    start_scheduler()  # check_critical_stock (15 min interval) · daily_summary (cron 08:00)
     yield
     stop_scheduler()
 
