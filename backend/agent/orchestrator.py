@@ -1,34 +1,32 @@
 """
 orchestrator.py — KOBİ Pilot AI Agent Orchestrator
-LangChain ReAct agent powered by Gemini Pro.
+LangGraph ReAct agent powered by Gemini.
 Handles both customer-facing and admin-facing conversations.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 from enum import Enum
 from typing import Optional
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.prompts import PromptTemplate
-from langchain.tools import BaseTool
+from langgraph.prebuilt import create_react_agent
 
-from agent.tools import ALL_TOOLS, CUSTOMER_TOOLS, ADMIN_TOOLS
-from agent.memory import get_langchain_memory, save_message
+from agent.tools import ADMIN_TOOLS, CUSTOMER_TOOLS
+from agent.memory import load_memory, save_message
 
+logger = logging.getLogger(__name__)
 
-# Agent Roles
 
 class AgentRole(str, Enum):
-    CUSTOMER = "customer"   # Web chat / WhatsApp customer support
-    ADMIN = "admin"         # Dashboard — business owner
+    CUSTOMER = "customer"
+    ADMIN = "admin"
 
 
-# System prompts
-
-CUSTOMER_SYSTEM_PROMPT = """Sen KOBİ Pilot'un müşteri destek asistanısın. 
+CUSTOMER_SYSTEM_PROMPT = """Sen KOBİ Pilot'un müşteri destek asistanısın.
 Adın "Pilot". Yardımcı, nazik ve profesyonelsin.
 
 Müşterilere şu konularda yardım edersin:
@@ -37,25 +35,12 @@ Müşterilere şu konularda yardım edersin:
 - Ürün stok bilgisi
 - Genel sorular
 
-KURALLLAR:
+KURALLAR:
 - Her zaman Türkçe yanıt ver.
 - Kısa, net ve dostane ol.
 - Müşterinin sipariş/takip numarasını bilmiyorsan kibarca sor.
 - Stok değiştirme veya sipariş iptal etme gibi admin işlemleri yapma.
-- Yapamayacağın bir işlem varsa kibarca açıkla ve işletmeyle iletişime geçmelerini öner.
-
-Mevcut araçlar:
-{tools}
-
-Araç isimleri: {tool_names}
-
-Sohbet geçmişi:
-{chat_history}
-
-Kullanıcı mesajı: {input}
-
-Düşünce süreci:
-{agent_scratchpad}"""
+- Yapamayacağın bir işlem varsa kibarca açıkla ve işletmeyle iletişime geçmelerini öner."""
 
 ADMIN_SYSTEM_PROMPT = """Sen KOBİ Pilot'un işletme yönetim asistanısın.
 İşletme sahibine kapsamlı destek sağlarsın.
@@ -64,7 +49,6 @@ Yardım ettiğin konular:
 - Sipariş yönetimi ve durum güncelleme
 - Stok kontrolü ve kritik stok uyarıları
 - Kargo takibi
-- Müşteri arama
 - Günlük özet ve iş istatistikleri
 - Tedarikçi e-postası taslağı hazırlama
 - Müşteri bildirim mesajı oluşturma
@@ -73,52 +57,36 @@ KURALLAR:
 - Her zaman Türkçe yanıt ver.
 - Net ve bilgilendirici ol; rakamları ve detayları göster.
 - Kritik stok veya bekleyen sipariş varsa proaktif olarak uyar.
-- İşlemleri gerçekleştirmeden önce önemli değişiklikleri (iptal, durum güncelleme) teyit et.
+- Önemli değişiklikleri (iptal, durum güncelleme) gerçekleştirmeden önce teyit et."""
 
-Mevcut araçlar:
-{tools}
-
-Araç isimleri: {tool_names}
-
-Sohbet geçmişi:
-{chat_history}
-
-Kullanıcı mesajı: {input}
-
-Düşünce süreci:
-{agent_scratchpad}"""
-
-
-# Orchestrator class
 
 class KobiAgentOrchestrator:
     """
     Main orchestrator for KOBİ Pilot.
-    Creates and manages LangChain ReAct agents for customer and admin roles.
+    Uses LangGraph create_react_agent for both customer and admin roles.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
             raise EnvironmentError("GOOGLE_API_KEY environment variable not set.")
 
         self._llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash",
             google_api_key=api_key,
             temperature=0.3,
-            convert_system_message_to_human=True,  # Gemini requirement
         )
 
-        self._customer_agent = self._build_agent(
+        self._customer_agent = create_react_agent(
+            model=self._llm,
             tools=CUSTOMER_TOOLS,
-            system_prompt=CUSTOMER_SYSTEM_PROMPT,
+            prompt=CUSTOMER_SYSTEM_PROMPT,
         )
-        self._admin_agent = self._build_agent(
+        self._admin_agent = create_react_agent(
+            model=self._llm,
             tools=ADMIN_TOOLS,
-            system_prompt=ADMIN_SYSTEM_PROMPT,
+            prompt=ADMIN_SYSTEM_PROMPT,
         )
-
-    # Public
 
     def run(
         self,
@@ -127,67 +95,37 @@ class KobiAgentOrchestrator:
         channel: str = "web",
         role: AgentRole = AgentRole.CUSTOMER,
     ) -> str:
-        """
-        Process a message and return the agent's response.
-        Automatically handles memory load/save.
-        """
-        # Save incoming human message
-        save_message(customer_id, channel, "human", message)
+        """Process a message and return the agent's response."""
+        # Load history before saving the new message so it does not appear twice.
+        # SystemMessages are filtered out — the agent's own prompt already handles that.
+        history = [
+            m for m in load_memory(customer_id, channel)
+            if not isinstance(m, SystemMessage)
+        ]
 
-        # Load LangChain memory
-        memory = get_langchain_memory(customer_id, channel)
-
-        # Select agent
-        agent_executor = (
-            self._admin_agent if role == AgentRole.ADMIN else self._customer_agent
-        )
+        agent = self._admin_agent if role == AgentRole.ADMIN else self._customer_agent
 
         try:
-            result = agent_executor.invoke({
-                "input": message,
-                "chat_history": memory.load_memory_variables({})["chat_history"],
+            result = agent.invoke({
+                "messages": history + [HumanMessage(content=message)]
             })
-            response = result.get("output", "Bir hata oluştu, lütfen tekrar deneyin.")
-        except Exception as e:
-            response = f"Üzgünüm, isteğinizi işlerken bir sorun oluştu: {str(e)}"
+            last_msg = result["messages"][-1]
+            response: str = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+        except Exception as exc:
+            logging.exception(exc)
+            response = f"Üzgünüm, isteğinizi işlerken bir sorun oluştu: {exc}"
 
-        # Save AI response to memory
+        # Persist both turns only after a successful (or gracefully failed) invoke.
+        save_message(customer_id, channel, "human", message)
         save_message(customer_id, channel, "ai", response)
-
         return response
 
-    # Private
-
-    def _build_agent(
-        self,
-        tools: list[BaseTool],
-        system_prompt: str,
-    ) -> AgentExecutor:
-        prompt = PromptTemplate.from_template(system_prompt)
-
-        agent = create_react_agent(
-            llm=self._llm,
-            tools=tools,
-            prompt=prompt,
-        )
-
-        return AgentExecutor(
-            agent=agent,
-            tools=tools,
-            verbose=True,           # Set False in production
-            max_iterations=8,
-            handle_parsing_errors=True,
-            return_intermediate_steps=False,
-        )
-
-
-# Module-level singleton (lazy init)
 
 _orchestrator: Optional[KobiAgentOrchestrator] = None
 
 
 def get_orchestrator() -> KobiAgentOrchestrator:
-    """Return the singleton orchestrator instance."""
+    """Return the singleton orchestrator, initialising it on first call."""
     global _orchestrator
     if _orchestrator is None:
         _orchestrator = KobiAgentOrchestrator()

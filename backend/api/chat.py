@@ -22,6 +22,11 @@ from database.models import Customer
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
+# Sentinel used as the memory key for all admin sessions.
+# Admin conversations are not tied to a Customer row; using 0 avoids any
+# collision with real customer IDs (auto-increment starts at 1).
+_ADMIN_MEMORY_ID = 0
+
 
 # ---------------------------------------------------------------------------
 # Request / Response schemas
@@ -111,7 +116,7 @@ async def admin_chat(req: AdminChatRequest):
 
     response_text = orchestrator.run(
         message=req.message,
-        customer_id=req.admin_id,
+        customer_id=_ADMIN_MEMORY_ID,
         channel=req.channel,
         role=AgentRole.ADMIN,
     )
@@ -138,7 +143,7 @@ async def get_history(customer_id: int, channel: str = "web"):
 
     messages = load_memory(customer_id, channel)
 
-    from langchain.schema import HumanMessage, AIMessage, SystemMessage
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
     history = []
     for m in messages:

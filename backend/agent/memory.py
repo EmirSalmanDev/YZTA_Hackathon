@@ -9,8 +9,7 @@ import json
 from datetime import datetime
 from typing import List, Optional
 
-from langchain.schema import BaseMessage, HumanMessage, AIMessage, SystemMessage
-from langchain.memory import ConversationBufferWindowMemory
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from sqlmodel import Session, select
 
 from database.connection import get_session
@@ -118,20 +117,10 @@ def get_langchain_memory(
     customer_id: int,
     channel: str,
     window: int = 10,
-) -> ConversationBufferWindowMemory:
-    """Return a LangChain memory object pre-loaded with history."""
+) -> list[BaseMessage]:
+    """Return conversation history as a list of LangChain messages."""
     history = load_memory(customer_id, channel)
-    memory = ConversationBufferWindowMemory(
-        k=window,
-        memory_key="chat_history",
-        return_messages=True,
-    )
-    for msg in history:
-        if isinstance(msg, HumanMessage):
-            memory.chat_memory.add_user_message(msg.content)
-        elif isinstance(msg, AIMessage):
-            memory.chat_memory.add_ai_message(msg.content)
-    return memory
+    return history[-window:]
 
 
 # Serialization helpers

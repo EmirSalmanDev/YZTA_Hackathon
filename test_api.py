@@ -12,6 +12,9 @@ import sys
 from typing import Any, Callable
 
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 _PASS = 0
 _FAIL = 0
