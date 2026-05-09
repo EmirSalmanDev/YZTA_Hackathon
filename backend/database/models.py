@@ -29,6 +29,22 @@ class Product(SQLModel, table=True):
     unit: str
     price: float
 
+    @property
+    def quantity(self) -> int:
+        return self.stock_amount
+
+    @quantity.setter
+    def quantity(self, value: int) -> None:
+        self.stock_amount = value
+
+    @property
+    def threshold(self) -> int:
+        return self.critical_threshold
+
+    @threshold.setter
+    def threshold(self, value: int) -> None:
+        self.critical_threshold = value
+
 
 class Order(SQLModel, table=True):
     __tablename__ = "orders"

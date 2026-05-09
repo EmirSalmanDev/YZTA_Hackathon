@@ -17,7 +17,27 @@ engine = create_engine(
 )
 
 
+def _warn_if_stale_schema() -> None:
+    """Warn once at startup if the on-disk DB has the old Product column names."""
+    if not (_DB_DIR / "kobi.db").exists():
+        return
+    from sqlalchemy import inspect as sa_inspect
+    inspector = sa_inspect(engine)
+    if "product" not in inspector.get_table_names():
+        return
+    columns = {col["name"] for col in inspector.get_columns("product")}
+    if columns & {"quantity", "threshold"}:
+        import warnings
+        warnings.warn(
+            "Stale DB schema: 'product' table has old columns (quantity/threshold). "
+            "Delete data/kobi.db and restart to apply the current schema.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+
 def create_db_and_tables() -> None:
+    _warn_if_stale_schema()
     SQLModel.metadata.create_all(engine)
 
 
