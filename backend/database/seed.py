@@ -181,7 +181,7 @@ def _make_orders(customer_ids: list[int], n: int) -> list[Order]:
 
 def _make_cargo_events(order: Order) -> list[CargoEvent]:
     city = random.choice(_CITIES)
-    sequence = _CARGO_EVENTS[order.status]
+    sequence = _CARGO_EVENTS.get(order.status, _CARGO_EVENTS["pending"])
     events = []
     # Space events 3-12 hours apart starting from order creation
     ts: datetime = order.created_at  # type: ignore[assignment]

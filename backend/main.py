@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
+
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -14,6 +16,8 @@ from database.connection import create_db_and_tables, engine
 from database.models import CargoEvent, Conversation, Customer, Order, Product
 from database.seed import seed
 from scheduler.jobs import start_scheduler, stop_scheduler
+
+load_dotenv()
 
 
 @asynccontextmanager

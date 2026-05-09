@@ -20,15 +20,15 @@ class StatusUpdate(BaseModel):
 @router.get("/orders", response_model=List[Order])
 async def list_orders(
     status: Optional[str] = Query(default=None, description="Filter by order status"),
-    date: Optional[date] = Query(default=None, description="Filter by creation date (YYYY-MM-DD)"),
+    filter_date: Optional[date] = Query(default=None, description="Filter by creation date (YYYY-MM-DD)"),
     session: Session = Depends(get_session),
 ) -> List[Order]:
     query = select(Order)
     if status:
         query = query.where(Order.status == status)
     orders = session.exec(query).all()
-    if date:
-        orders = [o for o in orders if o.created_at.date() == date]
+    if filter_date:
+        orders = [o for o in orders if o.created_at.date() == filter_date]
     return list(orders)
 
 

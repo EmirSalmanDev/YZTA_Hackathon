@@ -12,7 +12,7 @@ _DATA_DIR = Path("data")
 _ALERTS_FILE = _DATA_DIR / "alerts.json"
 _SUMMARY_FILE = _DATA_DIR / "daily_summary.json"
 
-scheduler = BackgroundScheduler()
+scheduler = BackgroundScheduler(timezone="Europe/Istanbul")
 
 
 def check_critical_stock() -> None:
