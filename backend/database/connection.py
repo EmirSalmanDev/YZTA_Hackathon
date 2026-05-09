@@ -1,9 +1,20 @@
-from sqlmodel import SQLModel, create_engine, Session
-from typing import Generator
+from collections.abc import Generator
+from pathlib import Path
 
-DATABASE_URL = "sqlite:///./data/kobi.db"
+from sqlmodel import Session, SQLModel, create_engine
 
-engine = create_engine(DATABASE_URL, echo=False)
+_DB_DIR = Path("data")
+_DB_DIR.mkdir(exist_ok=True)
+
+DATABASE_URL = f"sqlite:///{_DB_DIR / 'kobi.db'}"
+
+# check_same_thread=False is required for SQLite when used with FastAPI's
+# async request handling, which may run sync DB calls across threads.
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},
+)
 
 
 def create_db_and_tables() -> None:
@@ -16,4 +27,5 @@ def get_session() -> Generator[Session, None, None]:
 
 
 if __name__ == "__main__":
+    create_db_and_tables()
     print("smoke ok")
