@@ -42,7 +42,8 @@ async def cargo_delays(session: Session = Depends(get_session)) -> List[DelayedS
     ).all()
     delayed: list[DelayedShipment] = []
     for order in orders:
-        assert order.cargo_tracking_id is not None  # guaranteed by IS NOT NULL filter above
+        if order.cargo_tracking_id is None:
+            continue
         result = track_shipment(order.cargo_tracking_id)
         if result["status"] == _DELAYED_STATUS:
             delayed.append(DelayedShipment(order_id=order.id, **result))  # type: ignore[arg-type]
