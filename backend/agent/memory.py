@@ -13,7 +13,7 @@ from langchain.schema import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain.memory import ConversationBufferWindowMemory
 from sqlmodel import Session, select
 
-from database.connection import get_session
+from database.connection import get_session, get_session_ctx
 from database.models import Conversation
 
 
@@ -35,7 +35,7 @@ def load_memory(customer_id: int, channel: str) -> list[BaseMessage]:
         return _memory_cache[key]
 
     # Try to hydrate from DB
-    with get_session() as session:
+    with get_session_ctx() as session:
         conv = session.exec(
             select(Conversation)
             .where(Conversation.customer_id == customer_id)
@@ -77,7 +77,7 @@ def save_message(
 
     # Persist serialized history to DB
     serialized = json.dumps(_serialize_messages(messages))
-    with get_session() as session:
+    with get_session_ctx() as session:
         conv = session.exec(
             select(Conversation)
             .where(Conversation.customer_id == customer_id)

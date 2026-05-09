@@ -49,3 +49,15 @@ def get_session() -> Generator[Session, None, None]:
 if __name__ == "__main__":
     create_db_and_tables()
     print("smoke ok")
+from contextlib import contextmanager
+
+@contextmanager
+def get_session_ctx():
+    """Context manager for use outside FastAPI (agent tools, scheduler)."""
+    with Session(engine) as session:
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
