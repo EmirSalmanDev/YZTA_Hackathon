@@ -1,7 +1,7 @@
 import os, sys
 sys.path.insert(0, ".")
 
-os.environ["GOOGLE_API_KEY"] = "AIzaSyBi_Ob8TFIXwOuqdl1SFh6-ugPZTRiF_ls"
+os.environ["GOOGLE_API_KEY"] = "your_api_key_here"  # Set your Google API key for testing
 
 from database.connection import create_db_and_tables
 from database.seed import seed
