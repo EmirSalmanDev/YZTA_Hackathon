@@ -14,12 +14,19 @@ from langchain.memory import ConversationBufferWindowMemory
 from sqlmodel import Session, select
 
 from database.connection import get_session
-from database.models import Conversation
+from database.models import Channel, Conversation
 
 
 
 # In-memory cache: { "{customer_id}:{channel}" -> list[BaseMessage] }
 _memory_cache: dict[str, list[BaseMessage]] = {}
+
+
+def _to_channel(channel: str) -> Channel:
+    try:
+        return Channel(channel)
+    except ValueError:
+        return Channel.web
 
 
 def _cache_key(customer_id: int, channel: str) -> str:
@@ -35,11 +42,12 @@ def load_memory(customer_id: int, channel: str) -> list[BaseMessage]:
         return _memory_cache[key]
 
     # Try to hydrate from DB
+    ch = _to_channel(channel)
     with get_session() as session:
         conv = session.exec(
             select(Conversation)
             .where(Conversation.customer_id == customer_id)
-            .where(Conversation.channel == channel)
+            .where(Conversation.channel == ch)
         ).first()
 
     if conv and conv.last_message:
@@ -77,11 +85,12 @@ def save_message(
 
     # Persist serialized history to DB
     serialized = json.dumps(_serialize_messages(messages))
+    ch = _to_channel(channel)
     with get_session() as session:
         conv = session.exec(
             select(Conversation)
             .where(Conversation.customer_id == customer_id)
-            .where(Conversation.channel == channel)
+            .where(Conversation.channel == ch)
         ).first()
 
         if conv:
@@ -91,7 +100,7 @@ def save_message(
         else:
             conv = Conversation(
                 customer_id=customer_id,
-                channel=channel,
+                channel=ch,
                 last_message=serialized,
                 updated_at=datetime.utcnow(),
             )

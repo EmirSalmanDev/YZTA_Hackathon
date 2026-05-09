@@ -129,9 +129,6 @@ def list_all_products() -> str:
     with get_session() as session:
         products = session.exec(select(Product)).all()
 
-        return [p.model_dump() for p in products if p.stock_amount <= p.critical_threshold]
-
-
     if not products:
         return json.dumps({"message": "No products in database.", "products": []})
 
