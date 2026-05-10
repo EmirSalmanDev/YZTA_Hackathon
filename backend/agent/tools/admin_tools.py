@@ -9,7 +9,7 @@ import logging
 from datetime import date, timedelta
 from langchain.tools import tool
 from sqlmodel import select
-from database.connection import get_session_ctx
+from database.connection import get_session
 from database.models import Order, Product, Customer
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def get_business_stats(period: str = "today") -> str:
     cutoff = cutoffs.get(period, today)
 
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             all_orders = session.exec(select(Order)).all()
             all_products = session.exec(select(Product)).all()
 
@@ -69,7 +69,7 @@ def search_customer(query: str) -> str:
     Use this when the owner wants to look up a specific customer.
     """
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             all_customers = session.exec(select(Customer)).all()
             all_orders = session.exec(select(Order)).all()
 
@@ -116,7 +116,7 @@ def get_pending_orders(dummy: str = "") -> str:
     Action Input olarak bos string gir.
     """
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             orders = session.exec(
                 select(Order).where(Order.status.in_(["pending", "confirmed", "shipped"]))
             ).all()
