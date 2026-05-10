@@ -8,7 +8,7 @@ import re
 import logging
 from langchain.tools import tool
 from sqlmodel import select
-from database.connection import get_session_ctx
+from database.connection import get_session
 from database.models import Order, CargoEvent, Customer
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def track_shipment(cargo_tracking_id: str) -> str:
     Use this when a customer provides a tracking number or asks 'where is my package'.
     """
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             order = session.exec(
                 select(Order).where(Order.cargo_tracking_id == cargo_tracking_id)
             ).first()
@@ -71,7 +71,7 @@ def track_by_order_id(order_id: str) -> str:
     """
     try:
         oid = _parse_int(order_id, "sipariş numarası")
-        with get_session_ctx() as session:
+        with get_session() as session:
             order = session.get(Order, oid)
             if not order:
                 return json.dumps({"error": f"Sipariş #{oid} bulunamadı."})

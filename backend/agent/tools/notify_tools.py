@@ -9,7 +9,7 @@ import logging
 from datetime import date
 from langchain.tools import tool
 from sqlmodel import select
-from database.connection import get_session_ctx
+from database.connection import get_session
 from database.models import Product, Order, Customer
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def draft_supplier_email(product_name: str, quantity_needed: str, supplier_name:
         qty = 0
 
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             all_products = session.exec(select(Product)).all()
             products_data = [
                 {"name": p.name, "stock_amount": p.stock_amount, "critical_threshold": p.critical_threshold, "unit": p.unit}
@@ -90,7 +90,7 @@ def draft_customer_notification(order_id: str, message_type: str) -> str:
 
     try:
         oid = _parse_int(order_id, "sipariş numarası")
-        with get_session_ctx() as session:
+        with get_session() as session:
             order = session.get(Order, oid)
             if not order:
                 return json.dumps({"error": f"Sipariş #{oid} bulunamadı."})
@@ -135,7 +135,7 @@ def generate_daily_summary(dummy: str = "") -> str:
     """
     today = date.today()
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             all_orders = session.exec(select(Order)).all()
             all_products = session.exec(select(Product)).all()
             all_customers = session.exec(select(Customer)).all()

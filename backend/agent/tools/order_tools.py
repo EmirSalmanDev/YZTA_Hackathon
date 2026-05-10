@@ -8,7 +8,7 @@ import re
 import logging
 from langchain.tools import tool
 from sqlmodel import select
-from database.connection import get_session_ctx
+from database.connection import get_session
 from database.models import Order, Customer, CargoEvent
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def get_order_status(order_id: str) -> str:
     """
     try:
         oid = _parse_int(order_id, "sipariş numarası")
-        with get_session_ctx() as session:
+        with get_session() as session:
             order = session.get(Order, oid)
             if not order:
                 return json.dumps({"error": f"Sipariş #{oid} bulunamadı."})
@@ -73,7 +73,7 @@ def list_customer_orders(customer_id: str) -> str:
     """
     try:
         cid = _parse_int(customer_id, "müşteri numarası")
-        with get_session_ctx() as session:
+        with get_session() as session:
             orders = session.exec(
                 select(Order)
                 .where(Order.customer_id == cid)
@@ -119,7 +119,7 @@ def update_order_status(order_id: str, new_status: str) -> str:
 
     try:
         oid = _parse_int(order_id, "sipariş numarası")
-        with get_session_ctx() as session:
+        with get_session() as session:
             order = session.get(Order, oid)
             if not order:
                 return json.dumps({"error": f"Sipariş #{oid} bulunamadı."})
