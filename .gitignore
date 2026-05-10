@@ -1,3 +1,8 @@
 .env
 CLAUDE.md
 venv/
+.claude
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

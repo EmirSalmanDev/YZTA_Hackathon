@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from database.connection import get_session
+from database.connection import get_session_dep as get_session
 from database.models import Order
 from mock.cargo_mock import track_shipment
 

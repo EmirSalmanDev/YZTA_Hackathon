@@ -9,17 +9,23 @@ import json
 from datetime import datetime
 from typing import List, Optional
 
-from langchain.schema import BaseMessage, HumanMessage, AIMessage, SystemMessage
-from langchain.memory import ConversationBufferWindowMemory
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from sqlmodel import Session, select
 
-from database.connection import get_session, get_session_ctx
-from database.models import Conversation
+from database.connection import get_session
+from database.models import Channel, Conversation
 
 
 
 # In-memory cache: { "{customer_id}:{channel}" -> list[BaseMessage] }
 _memory_cache: dict[str, list[BaseMessage]] = {}
+
+
+def _to_channel(channel: str) -> Channel:
+    try:
+        return Channel(channel)
+    except ValueError:
+        return Channel.web
 
 
 def _cache_key(customer_id: int, channel: str) -> str:
@@ -35,11 +41,12 @@ def load_memory(customer_id: int, channel: str) -> list[BaseMessage]:
         return _memory_cache[key]
 
     # Try to hydrate from DB
-    with get_session_ctx() as session:
+    ch = _to_channel(channel)
+    with get_session() as session:
         conv = session.exec(
             select(Conversation)
             .where(Conversation.customer_id == customer_id)
-            .where(Conversation.channel == channel)
+            .where(Conversation.channel == ch)
         ).first()
 
     if conv and conv.last_message:
@@ -77,11 +84,12 @@ def save_message(
 
     # Persist serialized history to DB
     serialized = json.dumps(_serialize_messages(messages))
-    with get_session_ctx() as session:
+    ch = _to_channel(channel)
+    with get_session() as session:
         conv = session.exec(
             select(Conversation)
             .where(Conversation.customer_id == customer_id)
-            .where(Conversation.channel == channel)
+            .where(Conversation.channel == ch)
         ).first()
 
         if conv:
@@ -91,7 +99,7 @@ def save_message(
         else:
             conv = Conversation(
                 customer_id=customer_id,
-                channel=channel,
+                channel=ch,
                 last_message=serialized,
                 updated_at=datetime.utcnow(),
             )
@@ -109,20 +117,10 @@ def get_langchain_memory(
     customer_id: int,
     channel: str,
     window: int = 10,
-) -> ConversationBufferWindowMemory:
-    """Return a LangChain memory object pre-loaded with history."""
+) -> list[BaseMessage]:
+    """Return conversation history as a list of LangChain messages."""
     history = load_memory(customer_id, channel)
-    memory = ConversationBufferWindowMemory(
-        k=window,
-        memory_key="chat_history",
-        return_messages=True,
-    )
-    for msg in history:
-        if isinstance(msg, HumanMessage):
-            memory.chat_memory.add_user_message(msg.content)
-        elif isinstance(msg, AIMessage):
-            memory.chat_memory.add_ai_message(msg.content)
-    return memory
+    return history[-window:]
 
 
 # Serialization helpers

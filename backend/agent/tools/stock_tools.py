@@ -144,16 +144,21 @@ def list_all_products(dummy: str = "") -> str:
             all_products = session.exec(select(Product)).all()
             products_data = [_product_to_dict(p) for p in all_products]
 
-        if not products_data:
-            return json.dumps({"message": "Veritabanında ürün bulunamadı.", "products": []})
+    if not products:
+        return json.dumps({"message": "No products in database.", "products": []})
 
-        for p in products_data:
-            p["status"] = "KRİTİK" if p["stock_amount"] <= p["critical_threshold"] else "NORMAL"
-
-        return json.dumps({
-            "total_products": len(products_data),
-            "products": products_data,
-        }, ensure_ascii=False)
-    except Exception:
-        logger.exception("list_all_products failed")
-        return json.dumps({"error": "Ürün listesi alınırken bir hata oluştu."})
+    return json.dumps({
+        "total_products": len(products),
+        "products": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "stock_amount": p.stock_amount,
+                "critical_threshold": p.critical_threshold,
+                "unit": p.unit,
+                "price": float(p.price),
+                "status": "KRİTİK" if p.stock_amount <= p.critical_threshold else "NORMAL",
+            }
+            for p in products
+        ],
+    }, ensure_ascii=False)

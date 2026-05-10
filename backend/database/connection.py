@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 from sqlmodel import Session, SQLModel, create_engine
@@ -41,7 +42,15 @@ def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
 
 
+@contextmanager
 def get_session() -> Generator[Session, None, None]:
+    """Context manager for direct use in tools, memory, and helpers."""
+    with Session(engine) as session:
+        yield session
+
+
+def get_session_dep() -> Generator[Session, None, None]:
+    """Plain generator dependency for FastAPI's Depends()."""
     with Session(engine) as session:
         yield session
 

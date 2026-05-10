@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from database.connection import get_session
+from database.connection import get_session_dep as get_session
 from database.models import Order
 
 router = APIRouter()
