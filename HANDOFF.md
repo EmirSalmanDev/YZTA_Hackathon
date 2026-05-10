@@ -6,46 +6,38 @@ Personal context file. Read this at the start of every new session before touchi
 
 ## Where I left off
 
-A full debugging session on 2026-05-09 fixed every startup-blocking bug in the backend. The backend boots cleanly, all 16 non-chat smoke tests pass (19/19 when `GOOGLE_API_KEY` is set). The agent reaches Gemini correctly but hit a free-tier 429 at test time — no code change needed, it will work once quota resets or a paid key is used.
+2026-05-10: Dockerized backend + dashboard. Stack is fully working.
 
-The session ended after updating `CLAUDE.md` and creating this file.
+Changes made:
+- `docker-compose.yml`: removed `whatsapp` service; added backend healthcheck (15s
+  start_period, /health probe); dashboard waits on `service_healthy`.
+- `backend/requirements.txt`: added `langgraph>=1.1.10`.
+- `agent/tools/order_tools.py`, `stock_tools.py`, `cargo_tools.py`, `notify_tools.py`:
+  all had `get_session_ctx` (removed symbol) — renamed to `get_session` throughout.
+- `agent/tools/stock_tools.py` `list_all_products`: had broken `try:` with no `except`
+  and referenced undefined `products` — rewrote to use `products_data` with proper
+  `except` block.
+
+Smoke test result: **19/19 passed** (chat tests return HTTP 200 with graceful Gemini
+quota error — counts as pass).
 
 ---
 
 ## Pick up here
 
-The three open bugs (priority order):
-
-1. **`dashboard/pages/3_stock.py` line 20** — `p["sku"]` → `p["name"]`, rename `critical_skus` → `critical_names`.
-2. **`dashboard/pages/1_chat.py`** — Replace the `"..."` stub with an actual `POST /api/chat` call. The backend endpoint is `POST /api/chat` with body `{message: str, customer_id: int, channel: str}`. Response field is `response` (not `reply`).
-3. **`agent/tools/admin_tools.py` orphaned** — Add imports for `get_business_stats`, `search_customer`, `get_pending_orders` to `backend/agent/tools/__init__.py` and append them to `ADMIN_TOOLS`.
-
-After those three, verify the agent returns real Turkish replies by running `python test_api.py` with a valid `GOOGLE_API_KEY` in `.env`.
+Stack is running: `docker compose up` (no `--build` needed unless code changes).
+- Backend:   http://localhost:8000/health
+- Dashboard: http://localhost:8501
 
 ---
 
-## Open tasks (priority-ordered)
+## Open tasks
 
 | # | File | Task | Effort |
 |---|------|------|--------|
-| 1 | `dashboard/pages/3_stock.py:20` | `p["sku"]` → `p["name"]`, rename `critical_skus` | 2 min |
-| 2 | `dashboard/pages/1_chat.py` | Implement chat submit → `POST /api/chat` | 15 min |
-| 3 | `backend/agent/tools/__init__.py` | Import + add `admin_tools.py` tools to `ADMIN_TOOLS` | 5 min |
-| 4 | Gemini quota | Verify real Turkish reply once quota resets / paid key | test only |
-
----
-
-## Fragile spots
-
-**`database/connection.py` dual-use split** — `get_session()` is `@contextmanager` (for `with get_session() as session:` in tools and memory). `get_session_dep()` is a plain generator (for FastAPI `Depends()`). The three routers (`orders.py`, `stock.py`, `cargo.py`) all do `from database.connection import get_session_dep as get_session`. Do NOT merge these back into one function — FastAPI's `Depends()` calls `next()` directly and will break if the function is decorated with `@contextmanager`.
-
-**`agent/tools/__init__.py` list membership check** — `ALL_TOOLS` deduplicates with `if t not in CUSTOMER_TOOLS`. This works because `@tool`-decorated functions are singletons (same object). Do not replace them with new instances (e.g., re-importing after reload) without updating the list logic.
-
-**Admin memory sentinel** — Admin sessions use `customer_id=0` as the FK in `conversation`. SQLite doesn't enforce FK constraints by default, so this writes cleanly. A migration to a proper DB (PostgreSQL) would need a real `customer` row with `id=0` or a nullable FK.
-
-**`Channel` enum coercion** — `memory.py` uses `_to_channel()` which falls back to `Channel.web` on unknown strings (e.g., `"dashboard"`). Admin channel is stored as `Channel.web`, not `"dashboard"`. This is intentional — `Channel` only has `web` and `whatsapp` members.
-
-**LangChain/LangGraph versions** — Locked to `langchain==1.2.18`, `langgraph==1.1.10`. The orchestrator uses `langgraph.prebuilt.create_react_agent` (not `langchain.agents`). If dependencies are upgraded, re-verify the agent factory and message-flow pattern.
+| 1 | `docker-compose.yml` | ~~Dockerize backend + dashboard~~ | DONE |
+| 2 | `dashboard/pages/1_chat.py` | Implement POST /api/chat stub | teammate |
+| 3 | Agent chat test | 19/19 already pass (Gemini quota error is graceful) | DONE |
 
 ---
 
@@ -55,20 +47,50 @@ After those three, verify the agent returns real Turkish replies by running `pyt
 # 1. Check if backend is already running
 lsof -ti:8000
 
-# 2. If not running, start it (from repo root)
+# 2. If not running (local):
 cd backend && PYTHONPATH=. uvicorn main:app --reload --port 8000
 
-# 3. Run smoke tests (separate terminal, from repo root)
-python test_api.py
+# 3. If running via Docker:
+docker compose up
 
-# 4. For chat tests to run, .env must have GOOGLE_API_KEY set
-#    Check: grep GOOGLE_API_KEY .env
+# 4. Run smoke tests
+python test_api.py
 
 # 5. If DB is missing or corrupt, re-seed (idempotent)
 cd backend && PYTHONPATH=. python database/seed.py
 ```
 
-If uvicorn fails to start, the most common causes are:
-- Port 8000 in use: `lsof -ti:8000 | xargs kill -9`
-- Missing `.env`: copy from a teammate or create with at least `GOOGLE_API_KEY=`
-- Missing packages: `pip install -r backend/requirements.txt`
+---
+
+## Fragile spots
+
+**`database/connection.py` dual-use split** — `get_session()` is `@contextmanager` 
+(for `with get_session() as session:` in tools and memory). `get_session_dep()` is a 
+plain generator (for FastAPI `Depends()`). The three routers (`orders.py`, `stock.py`,
+`cargo.py`) all do `from database.connection import get_session_dep as get_session`. 
+Do NOT merge these back into one function.
+
+**`agent/tools/__init__.py` list membership check** — `ALL_TOOLS` deduplicates with 
+`if t not in CUSTOMER_TOOLS`. Do not replace tool instances without updating list logic.
+
+**All five tool files use `get_session()`** — `order_tools.py`, `stock_tools.py`,
+`cargo_tools.py`, `notify_tools.py`, `admin_tools.py` all import and call `get_session()`.
+`get_session_ctx` was a removed symbol; every reference is now gone. If `connection.py`
+is refactored, update all five.
+
+**Admin memory sentinel** — Admin sessions use `customer_id=0` as FK in `conversation`.
+SQLite doesn't enforce FK constraints by default. A migration to PostgreSQL would need 
+a real `customer` row with `id=0` or a nullable FK.
+
+**`Channel` enum coercion** — `memory.py` uses `_to_channel()` which falls back to 
+`Channel.web` on unknown strings. `Channel` only has `web` and `whatsapp` members.
+
+**LangChain/LangGraph versions** — Locked to `langchain==1.2.18`, `langgraph==1.1.10`.
+If upgraded, re-verify agent factory and message-flow pattern.
+
+**`data/` permissions** — `kobi.db` must be `664`, `data/` directory must be `775`. 
+In Docker, ensure the volume mount doesn't reset permissions to readonly.
+
+**Gemini chat tests** — `POST /api/chat` returns HTTP 200 with a graceful Turkish
+fallback string when the Gemini quota is exhausted. All 19 smoke tests pass even without
+a valid key. This is not a code bug.

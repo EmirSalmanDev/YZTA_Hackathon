@@ -8,7 +8,7 @@ import re
 import logging
 from langchain.tools import tool
 from sqlmodel import select
-from database.connection import get_session_ctx
+from database.connection import get_session
 from database.models import Product
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def check_inventory(product_name: str) -> str:
     Use this when asked about availability of a specific product.
     """
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             all_products = session.exec(select(Product)).all()
             products_data = [_product_to_dict(p) for p in all_products]
 
@@ -68,7 +68,7 @@ def low_stock_alert(dummy: str = "") -> str:
     Action Input olarak bos string gir.
     """
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             all_products = session.exec(select(Product)).all()
             products_data = [_product_to_dict(p) for p in all_products]
 
@@ -105,7 +105,7 @@ def update_stock(product_id: str, new_amount: str) -> str:
         if amount < 0:
             return json.dumps({"error": "Stok miktarı negatif olamaz."})
 
-        with get_session_ctx() as session:
+        with get_session() as session:
             product = session.get(Product, pid)
             if not product:
                 return json.dumps({"error": f"Ürün #{pid} bulunamadı."})
@@ -140,25 +140,17 @@ def list_all_products(dummy: str = "") -> str:
     Action Input olarak bos string gir.
     """
     try:
-        with get_session_ctx() as session:
+        with get_session() as session:
             all_products = session.exec(select(Product)).all()
             products_data = [_product_to_dict(p) for p in all_products]
 
-    if not products:
-        return json.dumps({"message": "No products in database.", "products": []})
+        if not products_data:
+            return json.dumps({"message": "No products in database.", "products": []})
 
-    return json.dumps({
-        "total_products": len(products),
-        "products": [
-            {
-                "id": p.id,
-                "name": p.name,
-                "stock_amount": p.stock_amount,
-                "critical_threshold": p.critical_threshold,
-                "unit": p.unit,
-                "price": float(p.price),
-                "status": "KRİTİK" if p.stock_amount <= p.critical_threshold else "NORMAL",
-            }
-            for p in products
-        ],
-    }, ensure_ascii=False)
+        return json.dumps({
+            "total_products": len(products_data),
+            "products": products_data,
+        }, ensure_ascii=False)
+    except Exception:
+        logger.exception("list_all_products failed")
+        return json.dumps({"error": "Ürün listesi alınırken bir hata oluştu."})
