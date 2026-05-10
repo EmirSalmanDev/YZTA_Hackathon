@@ -18,6 +18,11 @@ from agent.tools.notify_tools import (
     draft_supplier_email,
     generate_daily_summary,
 )
+from agent.tools.admin_tools import (
+    get_business_stats,
+    search_customer,
+    get_pending_orders,
+)
 
 # Read-only tools available to customers: order lookups + cargo tracking.
 CUSTOMER_TOOLS = [
@@ -37,6 +42,9 @@ ADMIN_TOOLS = [
     draft_supplier_email,
     draft_customer_notification,
     generate_daily_summary,
+    get_business_stats,
+    search_customer,
+    get_pending_orders,
 ]
 
 # Union, deduplicated, preserving order.
