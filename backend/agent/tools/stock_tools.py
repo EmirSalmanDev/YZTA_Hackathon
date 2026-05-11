@@ -115,6 +115,7 @@ def update_stock(product_id: str, new_amount: str) -> str:
             unit = product.unit
             product.stock_amount = amount
             session.add(product)
+            session.commit()
 
         return json.dumps({
             "success": True,

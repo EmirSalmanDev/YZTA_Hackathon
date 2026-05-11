@@ -1,3 +1,19 @@
+# ---------------------------------------------------------------------------
+# IPv4 zorlaması — macOS'ta IPv6 DNS çözümlemesi Google API'ye bağlanamıyor.
+# Bu patch tüm socket çağrılarını IPv4'e zorlar.
+# ---------------------------------------------------------------------------
+import socket
+
+_original_getaddrinfo = socket.getaddrinfo
+
+
+def _ipv4_only_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return _original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+
+
+socket.getaddrinfo = _ipv4_only_getaddrinfo
+# ---------------------------------------------------------------------------
+
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -34,10 +50,13 @@ app = FastAPI(title="KOBİ Pilot API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:8501",   # Streamlit dashboard
-        "http://localhost:8502",   # WhatsApp bot
+        "http://localhost:8501",     # Streamlit dashboard (local)
+        "http://localhost:8502",     # WhatsApp bot (local)
+        "http://dashboard:8501",    # Streamlit dashboard (Docker)
+        "http://telegram:8502",     # Telegram bot (Docker)
+        "*",                        # Fallback — tüm origin'ler
     ],
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 

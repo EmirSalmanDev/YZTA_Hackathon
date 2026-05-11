@@ -5,6 +5,17 @@ Environment variable'lardan token ve URL okuma.
 """
 
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# .env dosyasını yükle — Docker dışında çalışırken gerekli
+# Önce proje kökündeki .env'yi, sonra yerel .env'yi dene
+_project_root_env = Path(__file__).resolve().parent.parent / ".env"
+if _project_root_env.exists():
+    load_dotenv(_project_root_env)
+else:
+    load_dotenv()  # CWD'deki .env
 
 # ---------------------------------------------------------------------------
 # Backend API URL

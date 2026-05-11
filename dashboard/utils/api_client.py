@@ -166,10 +166,23 @@ def get_cargo_delays() -> list:
 
 
 def admin_chat(message: str, admin_id: int = 1) -> str:
-    result = _safe_post("/api/chat/admin", {"message": message, "admin_id": admin_id, "channel": "dashboard"})
-    if isinstance(result, dict) and "error" not in result:
-        return result.get("response", result.get("message", str(result)))
-    return f"🤖 Backend şu an çevrimdışı. Mesajınız: '{message}' — Backend başlatılınca bu özellik aktif olacak."
+    """AI agent'a mesaj gönderir. LLM çağrısı uzun sürebileceğinden timeout 60 sn."""
+    try:
+        r = requests.post(
+            _url("/api/chat/admin"),
+            json={"message": message, "admin_id": admin_id, "channel": "dashboard"},
+            timeout=60,
+        )
+        if r.ok:
+            data = r.json()
+            return data.get("response", data.get("message", str(data)))
+        return f"⚠️ Backend hatası: HTTP {r.status_code}"
+    except requests.Timeout:
+        return "⏳ Yanıt süresi aşıldı. Lütfen daha kısa veya net bir soru deneyin."
+    except requests.ConnectionError:
+        return "🔌 Backend bağlantısı kurulamadı. Lütfen backend servisinin çalıştığından emin olun."
+    except Exception as e:
+        return f"🤖 Beklenmeyen hata: {e}"
 
 
 def health_check() -> dict:

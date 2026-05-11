@@ -8,6 +8,8 @@ from sqlmodel import Field, Relationship, SQLModel
 class Channel(str, Enum):
     web = "web"
     whatsapp = "whatsapp"
+    telegram = "telegram"
+    dashboard = "dashboard"
 
 
 class Customer(SQLModel, table=True):

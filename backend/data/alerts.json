@@ -1,12 +1,19 @@
 {
-  "last_check": "2026-05-11T03:36:29.114492+00:00",
-  "critical_count": 5,
+  "last_check": "2026-05-11T15:21:16.921372+00:00",
+  "critical_count": 6,
   "products": [
     {
       "id": 6,
       "name": "Sarı Biber",
       "stock_amount": 5,
       "critical_threshold": 63,
+      "unit": "kg"
+    },
+    {
+      "id": 18,
+      "name": "Beyaz Lahana",
+      "stock_amount": 0,
+      "critical_threshold": 58,
       "unit": "kg"
     },
     {

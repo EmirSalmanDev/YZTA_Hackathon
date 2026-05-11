@@ -14,7 +14,7 @@ from config import BACKEND_URL, MAX_MESSAGE_LENGTH
 
 logger = logging.getLogger(__name__)
 
-_TIMEOUT = 30.0  # Chat endpoint'leri uzun sürebilir (LLM çağrısı)
+_TIMEOUT = 60.0  # Chat endpoint'leri uzun sürebilir (LLM çağrısı)
 
 
 def _url(path: str) -> str:

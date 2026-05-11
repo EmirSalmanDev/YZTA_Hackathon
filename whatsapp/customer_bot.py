@@ -93,20 +93,34 @@ async def cargo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Doğal dil mesajları müşteri agent'a iletir.
+    Rate limiting uygulanır.
     """
     text = update.message.text
     if not text:
         return
 
-    logger.info("Customer message from %s: %s", update.effective_user.id, text[:100])
+    user_id = update.effective_user.id
+    logger.info("Customer message from %s: %s", user_id, text[:100])
+
+    # Rate limiting kontrolü
+    from conversation import check_rate_limit
+    if not check_rate_limit(user_id):
+        await update.message.reply_text(
+            "⏳ Lütfen biraz bekleyin, çok hızlı mesaj gönderiyorsunuz."
+        )
+        return
 
     await update.message.reply_text("🤔 Sorunuz işleniyor...")
 
     # Demo: customer_id=1 kullanılıyor
-    # Gerçekte: telegram_user_id → customer_id eşleştirmesi yapılmalı (bkz. info.py)
+    # Üretimde: telegram_user_id → customer_id eşleştirmesi yapılmalı
+    # (bkz: conversation.py → set_customer_id / get_customer_id)
+    from conversation import get_customer_id
+    cid = get_customer_id(user_id) or 1
+
     reply = await api_client.customer_chat(
         text,
-        customer_id=1,
+        customer_id=cid,
         channel="telegram",
     )
     await update.message.reply_text(reply, parse_mode="Markdown")

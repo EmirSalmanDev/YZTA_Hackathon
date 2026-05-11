@@ -134,7 +134,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.edit_message_text(reply, parse_mode="Markdown", reply_markup=admin_main_menu())
 
     elif data == "admin_help":
-        await help_command(update, context)
+        await query.edit_message_text(
+            "📖 **KoopPilot Admin Bot Komutları:**\n\n"
+            "/start — Bot'u başlat, ana menü\n"
+            "/stok — Kritik stok uyarıları\n"
+            "/siparisler — Bekleyen siparişler\n"
+            "/ozet — Günlük iş özeti\n"
+            "/yardim — Yardım menüsü\n\n"
+            "**Doğal dil komutlar da kullanabilirsiniz.**",
+            parse_mode="Markdown",
+            reply_markup=admin_main_menu(),
+        )
 
     # Sipariş durumu güncelleme callback'leri
     elif data.startswith("order_confirm_"):

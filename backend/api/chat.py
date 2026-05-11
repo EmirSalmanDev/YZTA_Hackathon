@@ -8,6 +8,8 @@ GET  /api/chat/history/{customer_id} — Fetch message history
 
 from __future__ import annotations
 
+import asyncio
+
 from datetime import datetime
 from typing import Optional
 
@@ -91,7 +93,8 @@ async def customer_chat(req: ChatRequest):
 
     orchestrator = get_orchestrator()
 
-    response_text = orchestrator.run(
+    response_text = await asyncio.to_thread(
+        orchestrator.run,
         message=req.message,
         customer_id=req.customer_id,
         channel=req.channel,
@@ -114,7 +117,8 @@ async def admin_chat(req: AdminChatRequest):
     """
     orchestrator = get_orchestrator()
 
-    response_text = orchestrator.run(
+    response_text = await asyncio.to_thread(
+        orchestrator.run,
         message=req.message,
         customer_id=_ADMIN_MEMORY_ID,
         channel=req.channel,
