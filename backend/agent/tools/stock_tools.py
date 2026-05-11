@@ -154,3 +154,49 @@ def list_all_products(dummy: str = "") -> str:
     except Exception:
         logger.exception("list_all_products failed")
         return json.dumps({"error": "Ürün listesi alınırken bir hata oluştu."})
+    
+@tool
+def create_product(product_name: str, stock_amount: str, unit: str, price: str = "0", critical_threshold: str = "20") -> str:
+    """
+    Yeni bir ürün tanımla ve veritabanına ekle.
+    Parametreler:
+    - product_name: Ürün adı (örn: "Patates")
+    - stock_amount: İlk stok miktarı (örn: "600")
+    - unit: Ölçü birimi (örn: "kg", "adet", "ton")
+    - price: Birim fiyatı (isteğe bağlı, varsayılan: 0)
+    - critical_threshold: Kritik stok seviyesi (isteğe bağlı, varsayılan: 20)
+    """
+    try:
+        amount = _parse_int(stock_amount, "stok miktarı")
+        threshold = _parse_int(critical_threshold, "kritik seviye") if critical_threshold else 20
+        
+        with get_session() as session:
+            # Aynı isimde ürün var mı kontrol et
+            existing = session.exec(select(Product).where(Product.name == product_name)).first()
+            if existing:
+                return json.dumps({"error": f"'{product_name}' zaten kayıtlı."})
+            
+            new_product = Product(
+                name=product_name,
+                stock_amount=amount,
+                unit=unit,
+                price=float(price) if price else 0.0,
+                critical_threshold=threshold,
+            )
+            session.add(new_product)
+            session.commit()
+            session.refresh(new_product)
+            
+            return json.dumps({
+                "success": True,
+                "message": f"✓ '{product_name}' başarıyla eklendi.",
+                "product_id": new_product.id,
+                "name": new_product.name,
+                "stock_amount": new_product.stock_amount,
+                "unit": new_product.unit,
+                "price": float(new_product.price),
+                "critical_threshold": new_product.critical_threshold,
+            }, ensure_ascii=False)
+    except Exception as e:
+        logger.exception("create_product failed")
+        return json.dumps({"error": f"Ürün eklenirken hata: {str(e)}"})
