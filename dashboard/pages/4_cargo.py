@@ -1,20 +1,30 @@
-import requests
+"""
+4_cargo.py — Kargo Takibi.
+"""
+
 import streamlit as st
+from utils.styles import setup_page, render_header, render_login_prompt
+from utils.auth import require_auth
+from utils.api_client import get_orders
 
-BACKEND = "http://backend:8000"
+setup_page("Kargo")
 
-st.title("Kargo Takip")
+if not require_auth():
+    st.markdown("<div style='margin-top:40px;'></div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.warning("Bu sayfayı görüntülemek için giriş yapmanız gerekmektedir.")
+        st.page_link("app.py", label="🚪 Giriş Sayfasına Git", use_container_width=True)
+    st.stop()
 
-tracking_id = st.text_input("Takip Numarası", placeholder="TRK-001")
+orders = get_orders()
+shipped = [o for o in orders if o.get("status") == "shipped"]
+render_header("Kargo Yönetimi", f"{len(shipped)} aktif gönderi yolda.")
 
-if st.button("Sorgula") and tracking_id:
-    response = requests.get(f"{BACKEND}/cargo/track/{tracking_id}")
-    if response.ok:
-        data = response.json()
-        st.success(f"Durum: {data['status']}")
-        st.json(data)
-    else:
-        st.error("Takip numarası bulunamadı.")
-
-if __name__ == "__main__":
-    print("smoke ok")
+for o in shipped:
+    with st.container(border=True):
+        st.markdown(f"""
+        <div style="display:flex; justify-content:space-between;">
+            <div><b>Sipariş #{o['id']}</b><br><small>{o.get('cargo_tracking_id', 'TRK-123')}</small></div>
+            <div style="color:#2563EB; font-weight:700;">Yolda</div>
+        </div>
+        """, unsafe_allow_html=True)
