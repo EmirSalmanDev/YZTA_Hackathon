@@ -1,7 +1,7 @@
 # test_stock_update.py
 import os, sys
 sys.path.insert(0, ".")
-os.environ["GOOGLE_API_KEY"] = "AIzaSyC-8sJbDsBXUtMI9XKsGvouStUnTwOBlMA"
+os.environ["GOOGLE_API_KEY"] = "your_google_api_key_here"  # Set your Google API key for testing
 
 from database.connection import create_db_and_tables
 from database.seed import seed
