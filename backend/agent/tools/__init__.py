@@ -8,6 +8,7 @@ from agent.tools.stock_tools import (
     list_all_products,
     low_stock_alert,
     update_stock,
+    create_product,
 )
 from agent.tools.cargo_tools import (
     track_by_order_id,
@@ -34,6 +35,7 @@ CUSTOMER_TOOLS = [
 
 # Write + management tools restricted to admin/owner.
 ADMIN_TOOLS = [
+    create_product, 
     update_order_status,
     check_inventory,
     low_stock_alert,
