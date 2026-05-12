@@ -377,7 +377,10 @@ def _inject_sidebar_toggle() -> None:
                 createButton();
                 updateVisibility();
             });
-            mo.observe(parent.document.body, { childList: true, subtree: false });
+            mo.observe(parent.document.body, {
+                childList: true,
+                subtree: true
+            });
         } catch(e) {}
 
         // Periyodik fallback
