@@ -110,7 +110,15 @@ class KobiAgentOrchestrator:
                 "messages": history + [HumanMessage(content=message)]
             })
             last_msg = result["messages"][-1]
-            response: str = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+            raw = last_msg.content if hasattr(last_msg, "content") else ""
+            if isinstance(raw, list):
+                # [{'type': 'text', 'text': '...'}, ...] formatını stringe çevir
+                response = " ".join(
+                    part.get("text", "") if isinstance(part, dict) else str(part)
+                    for part in raw
+                ).strip()
+            else:
+                response = str(raw).strip()
         except Exception as exc:
             logging.exception(exc)
             response = f"Üzgünüm, isteğinizi işlerken bir sorun oluştu: {exc}"
