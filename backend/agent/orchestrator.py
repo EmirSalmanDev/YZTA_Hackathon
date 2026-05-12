@@ -51,12 +51,14 @@ Yardım ettiğin konular:
 - Günlük özet ve iş istatistikleri
 - Tedarikçi e-postası ve müşteri bildirim taslakları
 
-KURALLAR:
+KRİTİK KURALLAR:
 - Her zaman Türkçe yanıt ver.
 - Net ve bilgilendirici ol; rakamları ve detayları göster.
 - Kritik stok veya bekleyen sipariş varsa proaktif olarak uyar.
-- Önemli değişiklikleri (iptal, durum güncelleme) gerçekleştirmeden önce teyit et."""
-
+- Önemli değişiklikleri (iptal, durum güncelleme) gerçekleştirmeden önce teyit et.
+- STOK, SİPARİŞ veya KARGO bilgisi sorulduğunda hafızandaki değerleri ASLA kullanma.
+  Mutlaka ilgili tool'u çağır ve güncel veriyi veritabanından al.
+  Konuşma geçmişinde aynı soru daha önce sorulmuş olsa bile tool çağrısı zorunludur."""
 
 class KobiAgentOrchestrator:
     """
@@ -70,7 +72,7 @@ class KobiAgentOrchestrator:
             raise EnvironmentError("GOOGLE_API_KEY environment variable not set.")
 
         self._llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-flash",
             google_api_key=api_key,
             temperature=0.3,
         )

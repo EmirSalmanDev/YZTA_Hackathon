@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sqlmodel import Session, SQLModel, create_engine
 
-_DB_DIR = Path("data")
+_DB_DIR = Path(__file__).parent / "data"
 _DB_DIR.mkdir(exist_ok=True)
 
 DATABASE_URL = f"sqlite:///{_DB_DIR / 'kobi.db'}"
