@@ -3,7 +3,7 @@ app.py — KoopPilot Dashboard Ana Giriş Sayfası.
 """
 
 import streamlit as st
-from utils.styles import setup_page, inject_global_css, render_header, COLORS
+from utils.styles import setup_page, render_header, inject_global_css, COLORS
 from utils.auth import login_user, register_user, ensure_demo_user
 
 # Sayfa Ayarları
