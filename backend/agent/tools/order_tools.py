@@ -126,6 +126,7 @@ def update_order_status(order_id: str, new_status: str) -> str:
             old_status = order.status
             order.status = new_status
             session.add(order)
+            session.commit()
 
         return json.dumps({
             "success": True,

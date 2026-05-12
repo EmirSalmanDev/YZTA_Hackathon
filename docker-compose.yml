@@ -19,6 +19,18 @@ services:
     ports:
       - "8501:8501"
     env_file: .env
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  telegram:
+    build: ./whatsapp
+    env_file: .env
+    environment:
+      - BACKEND_URL=http://backend:8000
     depends_on:
       backend:
         condition: service_healthy

@@ -94,41 +94,61 @@ def low_stock_alert(dummy: str = "") -> str:
 
 
 @tool
-def update_stock(product_id: str, new_amount: str) -> str:
+def update_stock(product_name: str, new_amount: str) -> str:
     """
-    Update the stock amount for a product. new_amount must be >= 0.
-    Use this when the business owner reports receiving new inventory.
+    Update the stock amount for a product by name (partial match supported).
+    new_amount must be >= 0.
+    Use this when the business owner wants to set a new stock level for a product.
+    Do NOT ask for product ID — search by name automatically.
     """
     try:
-        pid = _parse_int(product_id, "ürün numarası")
         amount = _parse_int(new_amount, "stok miktarı")
         if amount < 0:
             return json.dumps({"error": "Stok miktarı negatif olamaz."})
 
         with get_session() as session:
-            product = session.get(Product, pid)
-            if not product:
-                return json.dumps({"error": f"Ürün #{pid} bulunamadı."})
+            all_products = session.exec(select(Product)).all()
+
+            # Önce tam eşleşme dene
+            matches = [p for p in all_products if p.name.lower() == product_name.lower()]
+            # Tam eşleşme yoksa partial dene
+            if not matches:
+                matches = [p for p in all_products if product_name.lower() in p.name.lower()]
+
+            if not matches:
+                return json.dumps({"error": f"'{product_name}' ile eşleşen ürün bulunamadı."})
+
+            if len(matches) > 1:
+                names = [p.name for p in matches]
+                return json.dumps({
+                    "error": f"Birden fazla ürün eşleşti: {names}. Daha spesifik bir isim girin."
+                }, ensure_ascii=False)
+
+            product = matches[0]
             old_amount = product.stock_amount
             is_critical = amount <= product.critical_threshold
-            name = product.name
-            unit = product.unit
+            pid = product.id
+            pname = product.name
+            punit = product.unit
+
             product.stock_amount = amount
             session.add(product)
+            session.commit()
 
         return json.dumps({
             "success": True,
             "product_id": pid,
-            "name": name,
+            "name": pname,
             "old_amount": old_amount,
             "new_amount": amount,
-            "unit": unit,
+            "unit": punit,
             "is_now_critical": is_critical,
         }, ensure_ascii=False)
+
     except ValueError as e:
         return json.dumps({"error": str(e)})
     except Exception:
-        logger.exception("update_stock failed for product_id=%s", product_id)
+        logger.exception("update_stock failed for product_name=%s", product_name)
         return json.dumps({"error": "Stok güncellenirken bir hata oluştu."})
 
 
@@ -154,7 +174,8 @@ def list_all_products(dummy: str = "") -> str:
     except Exception:
         logger.exception("list_all_products failed")
         return json.dumps({"error": "Ürün listesi alınırken bir hata oluştu."})
-    
+
+
 @tool
 def create_product(product_name: str, stock_amount: str, unit: str, price: str = "0", critical_threshold: str = "20") -> str:
     """
@@ -169,13 +190,12 @@ def create_product(product_name: str, stock_amount: str, unit: str, price: str =
     try:
         amount = _parse_int(stock_amount, "stok miktarı")
         threshold = _parse_int(critical_threshold, "kritik seviye") if critical_threshold else 20
-        
+
         with get_session() as session:
-            # Aynı isimde ürün var mı kontrol et
             existing = session.exec(select(Product).where(Product.name == product_name)).first()
             if existing:
                 return json.dumps({"error": f"'{product_name}' zaten kayıtlı."})
-            
+
             new_product = Product(
                 name=product_name,
                 stock_amount=amount,
@@ -186,7 +206,7 @@ def create_product(product_name: str, stock_amount: str, unit: str, price: str =
             session.add(new_product)
             session.commit()
             session.refresh(new_product)
-            
+
             return json.dumps({
                 "success": True,
                 "message": f"✓ '{product_name}' başarıyla eklendi.",

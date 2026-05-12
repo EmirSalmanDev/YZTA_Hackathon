@@ -15,7 +15,38 @@ from sqlmodel import Session, select
 from database.connection import get_session
 from database.models import Channel, Conversation
 
+# memory.py — dosyanın en üstüne ekle
+import re
 
+_SKIP_AI_PATTERNS = [
+    r'\d+\s*kg',
+    r'\d+\s*adet',
+    r'\d+\s*ton',
+    r'stoğunuz\s+\d+',
+    r'stok.*\d+',
+    r'sipariş.*#\d+',
+]
+
+def _should_skip_ai_message(content: str) -> bool:
+    for pattern in _SKIP_AI_PATTERNS:
+        if re.search(pattern, content, re.IGNORECASE):
+            return True
+    return False
+
+
+def save_message(
+    customer_id: int,
+    channel: str,
+    role: str,
+    content: str,
+    window: int = 20,
+) -> None:
+    # ← YENİ: stok/miktar içeren AI cevaplarını memory'e yazma
+    if role == "ai" and _should_skip_ai_message(content):
+        return
+
+    key = _cache_key(customer_id, channel)
+    # ... geri kalan kod tamamen aynı kalıyor
 
 # In-memory cache: { "{customer_id}:{channel}" -> list[BaseMessage] }
 _memory_cache: dict[str, list[BaseMessage]] = {}
